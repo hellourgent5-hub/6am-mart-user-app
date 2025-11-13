@@ -109,6 +109,7 @@
 
     <!-- Firebase Imports -->
     <script type="module">
+        // Using a single version for all imports to maintain consistency
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
@@ -127,9 +128,9 @@
             addDoc, 
             setDoc,
             query,
-            where
+            where,
+            setLogLevel 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-lite.js";
 
         // Global Variables
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -142,6 +143,7 @@
         let userId = null;
         let currentPage = 'login'; // Start on login page
         let isAuthReady = false; // New flag to ensure listeners wait for authentication
+        let publicUnsubscribers = []; // Array to hold listener unsubscribe functions
 
         // --- Utility Functions ---
 
@@ -170,7 +172,10 @@
                 
                 // CRITICAL CHECK: Ensure configuration is available
                 if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
+                    // Render the UI even if config is missing, just show the error message.
                     showMessage("CRITICAL ERROR: Firebase configuration is missing. Ensure Admin app is deployed in Canvas.", 'error', 60000);
+                    // Still render the login page, but auth will fail later.
+                    renderAuthPage(document.getElementById('app-container'), 'login');
                     return;
                 }
 
@@ -184,11 +189,14 @@
                     isAuthReady = true; // Auth state has been checked at least once
                     if (user) {
                         userId = user.uid;
-                        console.log("User authenticated:", userId);
-                        // User is logged in, navigate to Home
-                        navigate('home');
-                        document.getElementById('nav-footer').classList.remove('hidden');
-                        document.getElementById('app-container').classList.add('app-view');
+                        console.log("User authenticated:", userId, user.isAnonymous ? '(Anonymous)' : '(Full User)');
+                        // User is logged in (full or anonymous)
+                        // Only navigate to home if they are a full user OR if we are currently on the home page (to refresh data)
+                        if (!user.isAnonymous || currentPage === 'home') {
+                            navigate('home');
+                            document.getElementById('nav-footer').classList.remove('hidden');
+                            document.getElementById('app-container').classList.add('app-view');
+                        }
                     } else {
                         userId = null;
                         console.log("User logged out or not authenticated.");
@@ -209,17 +217,20 @@
             } catch (error) {
                 console.error("Firebase Initialization Failed:", error);
                 showMessage("Initialization Failed: " + error.message, 'error', 8000);
+                // Also render the login page if init fails after the config check
+                renderAuthPage(document.getElementById('app-container'), 'login');
             }
         }
         
         async function handleInitialSignIn() {
              // If no user is logged in (after onAuthStateChanged runs), sign in anonymously 
              // to allow the user to read public collections (like stores/products/categories)
-             // while unauthenticated.
              if (!auth.currentUser) {
                  try {
+                     // We await the anonymous sign-in here. When it completes, 
+                     // onAuthStateChanged will be triggered, and that listener will handle navigation.
                      await signInAnonymously(auth);
-                     console.log("Signed in anonymously for public read access.");
+                     console.log("Attempted anonymous sign in.");
                  } catch(error) {
                      console.error("Anonymous sign in failed:", error);
                  }
@@ -231,6 +242,10 @@
         async function handleSignUp(email, password) {
             try {
                 if (!auth) throw new Error("Authentication service is not initialized.");
+                // Ensure anonymous user signs out before creating a full user
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    await signOut(auth);
+                }
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 console.log("Sign up successful:", userCredential.user.uid);
                 showMessage("Account created successfully! Welcome.", 'success');
@@ -246,6 +261,10 @@
         async function handleLogin(email, password) {
             try {
                 if (!auth) throw new Error("Authentication service is not initialized.");
+                 // Ensure anonymous user signs out before logging in as a full user
+                if (auth.currentUser && auth.currentUser.isAnonymous) {
+                    await signOut(auth);
+                }
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 console.log("Login successful:", userCredential.user.uid);
                 showMessage("Login successful!", 'success');
@@ -260,9 +279,10 @@
         async function handleLogout() {
             try {
                 if (!auth) throw new Error("Authentication service is not initialized.");
+                cleanupPublicListeners(); // Cleanup listeners before sign out
                 await signOut(auth);
                 showMessage("Logged out successfully.", 'success');
-                // The onAuthStateChanged listener handles navigation to 'login'
+                // The onAuthStateChanged listener handles navigation to 'login' and then handleInitialSignIn()
             } catch (error) {
                 console.error("Logout failed:", error);
                 showMessage("Logout Failed: " + error.message);
@@ -270,18 +290,26 @@
         }
 
         // --- Data Listeners ---
+        
+        function cleanupPublicListeners() {
+            publicUnsubscribers.forEach(unsub => unsub());
+            publicUnsubscribers = [];
+            console.log("Cleaned up public data listeners.");
+        }
 
-        // NEW: Function to start data listeners, called only when auth is ready
         function startPublicDataListeners() {
-            if (!db || !isAuthReady) {
-                // Should not happen if called correctly, but good as a safety check
-                console.log("Data listeners skipped: DB not ready or Auth not checked.");
+            // CRITICAL GUARD: Only run if DB, Auth, and a user (anon or full) are confirmed
+            if (!db || !isAuthReady || !auth.currentUser) {
+                console.warn("Attempted to start listeners but pre-conditions failed (DB, Auth Ready, or Current User missing).");
                 return;
             }
             
+            // Clean up old listeners before starting new ones to prevent duplicates
+            cleanupPublicListeners();
+            
             // 1. Real-time listener for Categories (Public Data)
             const categoriesCol = collection(db, `artifacts/${appId}/public/data/categories`);
-            onSnapshot(categoriesCol, (snapshot) => {
+            const unsubCategories = onSnapshot(categoriesCol, (snapshot) => {
                 const listContainer = document.getElementById('category-list');
                 if (!listContainer) return;
 
@@ -302,13 +330,15 @@
                     listContainer.appendChild(item);
                 });
             }, (error) => {
+                // This error means the security rule is violated, even with an authenticated user
                 console.error("Category Snapshot Error:", error.message);
-                // This is where the permission error will log if rules are bad, but the app won't crash
+                // We keep the error logged but stop the listener from constantly retrying
             });
+            publicUnsubscribers.push(unsubCategories);
             
             // 2. Real-time listener for Products (Public Data) - simplified list
             const productsCol = collection(db, `artifacts/${appId}/public/data/products`);
-            onSnapshot(productsCol, (snapshot) => {
+            const unsubProducts = onSnapshot(productsCol, (snapshot) => {
                 const listContainer = document.getElementById('product-list');
                 if (!listContainer) return;
 
@@ -334,6 +364,7 @@
             }, (error) => {
                 console.error("Product Snapshot Error:", error.message);
             });
+            publicUnsubscribers.push(unsubProducts);
         }
 
 
@@ -352,6 +383,11 @@
                 }
             });
 
+            // CRUCIAL: Cleanup listeners if leaving the home page
+            if (page !== 'home') {
+                cleanupPublicListeners();
+            }
+
             switch (page) {
                 case 'login':
                 case 'signup':
@@ -359,16 +395,33 @@
                     break;
                 case 'home':
                     renderHomePage(container);
-                    // Crucial: Start listeners only when navigating to a page that needs data
-                    if (isAuthReady) {
+                    // Crucial: Start listeners only when navigating to a page that needs data 
+                    // AND when a user object (full or anon) is available.
+                    if (isAuthReady && auth.currentUser) {
                         startPublicDataListeners();
+                    } else if (isAuthReady && !auth.currentUser) {
+                        // This handles a case where a user somehow logs out but is still on the home page.
+                        // We attempt anonymous sign-in, which will re-trigger onAuthStateChanged.
+                        handleInitialSignIn(); 
+                    } else {
+                         // Fallback for initial load state before isAuthReady is true
+                         console.log("Navigating home before auth is ready. Waiting for onAuthStateChanged to fire.");
                     }
                     break;
                 case 'cart':
-                    renderCartPage(container);
+                    // Check if user is fully logged in (not anonymous)
+                    if (auth.currentUser && auth.currentUser.isAnonymous) {
+                         renderAuthRequiredPage(container, 'Cart');
+                    } else {
+                        renderCartPage(container);
+                    }
                     break;
                 case 'account':
-                    renderAccountPage(container);
+                    if (auth.currentUser && auth.currentUser.isAnonymous) {
+                         renderAuthRequiredPage(container, 'Account');
+                    } else {
+                        renderAccountPage(container);
+                    }
                     break;
             }
         }
@@ -412,6 +465,18 @@
             });
         }
         
+        function renderAuthRequiredPage(container, pageName) {
+            container.innerHTML = `
+                <div class="py-4 text-center">
+                    <h1 class="text-2xl font-bold text-red-500 mb-4">${pageName} Access Denied</h1>
+                    <div class="card max-w-sm mx-auto p-8">
+                        <p class="text-gray-700 mb-4">You need to be logged in with a full user account to access your ${pageName}.</p>
+                        <button class="btn-primary mt-4" onclick="navigate('login')">Go to Login</button>
+                    </div>
+                </div>
+            `;
+        }
+        
         // --- Placeholder Pages ---
         
         function renderHomePage(container) {
@@ -435,12 +500,6 @@
                     </div>
                 </div>
             `;
-            
-            // Listeners are now started in the navigate function, but we can call it here too as a fallback 
-            // if the user lands directly on this page after auth is ready.
-            if (isAuthReady) {
-                startPublicDataListeners();
-            }
         }
 
 
@@ -473,17 +532,29 @@
             document.querySelectorAll('.nav-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const page = e.currentTarget.getAttribute('data-page');
-                    // Check if user is logged in before navigating to protected pages
-                    if (page !== 'login' && page !== 'signup' && !auth.currentUser) {
-                        showMessage("Please log in to view this page.");
+                    
+                    // Check if Firebase is initialized before checking auth status
+                    if (!auth) {
+                        showMessage("App is still initializing. Please wait a moment.");
                         return;
                     }
+                    
+                    // Protect Cart and Account pages if the user is anonymous
+                    if ((page === 'cart' || page === 'account') && auth.currentUser && auth.currentUser.isAnonymous) {
+                        showMessage("Please log in or sign up to access your personal pages.");
+                        // Navigate will handle rendering the auth required page
+                    }
+                    
                     navigate(page);
                 });
             });
 
             // Start Firebase initialization
             initializeFirebase();
+            
+            // Render the initial auth page immediately while Firebase initializes
+            // This prevents the white screen during the async setup.
+            renderAuthPage(document.getElementById('app-container'), 'login');
         });
 
     </script>
