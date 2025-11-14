@@ -3,280 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>6amMart User App</title>
+    <title>6amMart Product Catalog & Cart</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0fdf4; /* Light green background */
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 20px;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; }
+        .app-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 900px; /* Increased width for two-column layout */
+            width: 95%;
+            transition: all 0.3s ease-in-out;
         }
-        #app-container {
-            width: 100%;
-            max-width: 400px;
-            background-color: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            margin-top: 50px;
-        }
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            margin-top: 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            box-sizing: border-box;
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 12px;
-            margin-top: 20px;
-            background-color: #10b981; /* Emerald green */
-            color: white;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
+        .green-btn {
+            background-color: #10B981; /* Emerald 500 */
             transition: background-color 0.2s;
         }
-        .btn-primary:hover {
-            background-color: #059669;
+        .green-btn:hover {
+            background-color: #059669; /* Emerald 600 */
         }
-        .error-message {
-            color: #ef4444; /* Red */
-            margin-top: 10px;
-            text-align: center;
-            padding: 8px;
-            border: 1px solid #fecaca;
-            background-color: #fef2f2;
-            border-radius: 8px;
+        .input-field {
+            border: 2px solid #D1FAE5; /* Emerald 100 border */
+            background-color: #F0FDF4; /* Emerald 50 background */
+            transition: all 0.2s;
         }
-        .success-message {
-            color: #10b981; /* Green */
-            margin-top: 10px;
-            text-align: center;
-            padding: 8px;
-            border: 1px solid #d1fae5;
-            background-color: #f0fdf4;
-            border-radius: 8px;
+        .input-field:focus {
+            border-color: #10B981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+        }
+        .loader {
+            border-top-color: #10B981;
+            border-left-color: #10B981;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <div id="app-container">
-        <h1 class="text-3xl font-bold text-center text-green-700 mb-6">Welcome to 6amMart</h1>
-        <div id="content"></div>
+    <div class="app-card bg-white p-6 sm:p-8 rounded-2xl">
+        <h1 class="text-3xl font-bold text-center mb-2 text-green-700">6amMart Marketplace</h1>
+        
+        <!-- Status Box for Errors/Success -->
+        <div id="message-box" class="mt-4 p-3 rounded-lg text-sm font-medium transition duration-300 hidden"></div>
+
+        <!-- App Container (Auth or Dashboard) -->
+        <div id="app-container">
+            <!-- Content will be injected here by JavaScript -->
+        </div>
     </div>
 
-    <!-- Firebase Imports and Logic -->
+    <!-- Firebase SDK Imports -->
     <script type="module">
-        // Global variables provided by the Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Firebase imports from CDN
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-lite.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel, doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Disable logging in production for cleaner console (optional)
-        // setLogLevel('silent'); // Uncomment for production
+        // --- Core Setup ---
+        setLogLevel('debug');
 
-        let app, auth, db;
-        let userId = null;
+        // Global Variable Fallback (Using your provided config)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        
+        let firebaseConfig;
+        if (firebaseConfigString) {
+            try {
+                firebaseConfig = JSON.parse(firebaseConfigString);
+            } catch (e) {
+                console.error("Error parsing __firebase_config:", e);
+                displayMessage("Configuration Error: Invalid Firebase Config format.", 'error');
+                throw new Error("Invalid Firebase Config.");
+            }
+        } else {
+            // Hardcoded fallback config from user prompt (for editor use)
+            firebaseConfig = {
+                apiKey: "AIzaSyDm35wM7oGq06MEc7rsd9ZrCijbtUAZWNY",
+                authDomain: "am-mart-database.firebaseapp.com",
+                projectId: "am-mart-database",
+                storageBucket: "am-mart-database.firebasestorage.app",
+                messagingSenderId: "453648131188",
+                appId: "1:453648131188:web:27e8cb59e5b47c0e11dd21",
+                measurementId: "G-GRH69XMND7"
+            };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
         let isAuthReady = false;
+        let products = []; // Public product catalog
+        let cartItems = []; // Private user shopping cart
+        let currentView = 'login'; 
+        let productListenerInitialized = false; 
+        const appContainer = document.getElementById('app-container');
+        const messageBox = document.getElementById('message-box');
 
-        const contentDiv = document.getElementById('content');
+        // --- Paths & Collections ---
+        const PUBLIC_PRODUCTS_PATH = `artifacts/${appId}/public/data/products`;
+
+        /** Returns the Firestore Collection Reference for Products */
+        function getProductsCollectionRef() {
+            return collection(db, PUBLIC_PRODUCTS_PATH);
+        }
+        
+        /** Returns the Firestore Collection Reference for the User's Cart */
+        function getCartCollectionRef(userId) {
+            // Private Collection: /artifacts/{appId}/users/{userId}/cartItems
+            return collection(db, `artifacts/${appId}/users/${userId}/cartItems`);
+        }
 
         // --- Utility Functions ---
 
-        /** Displays messages to the user. */
-        function showMessage(text, type = 'error') {
-            let messageDiv = document.getElementById('message-box');
-            if (!messageDiv) {
-                messageDiv = document.createElement('div');
-                messageDiv.id = 'message-box';
-                contentDiv.prepend(messageDiv);
+        /** Displays messages in the dedicated message box. */
+        function displayMessage(message, type = 'info', duration = 4000) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800', 'bg-gray-200', 'text-gray-800');
+            
+            if (type === 'error') {
+                messageBox.classList.add('bg-red-200', 'text-red-800');
+            } else if (type === 'success') {
+                messageBox.classList.add('bg-green-200', 'text-green-800');
+            } else {
+                messageBox.classList.add('bg-gray-200', 'text-gray-800');
             }
-            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
-            messageDiv.textContent = text;
+
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
         }
 
-        /** Renders the Login Form */
-        function renderLogin() {
-            contentDiv.innerHTML = `
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Log In</h2>
-                <input type="email" id="login-email" placeholder="Email" class="form-input" required>
-                <input type="password" id="login-password" placeholder="Password" class="form-input" required>
-                <button id="login-btn" class="btn-primary">Log In</button>
-                <p class="text-center text-sm mt-4 text-gray-600">
-                    Need an account? <a href="#" id="show-signup" class="text-green-600 font-semibold hover:text-green-700">Sign Up</a>
-                </p>
-                <div id="message-box"></div>
-            `;
-            document.getElementById('show-signup').addEventListener('click', (e) => {
-                e.preventDefault();
-                renderSignup();
-            });
-            document.getElementById('login-btn').addEventListener('click', handleLogin);
+        /** Toggles the loading state for the button. */
+        function toggleLoading(buttonId, isLoading) {
+            const button = document.getElementById(buttonId);
+            if (!button) return;
+
+            button.disabled = isLoading;
+            button.innerHTML = isLoading 
+                ? `<svg class="loader inline w-4 h-4 mr-3 border-2 border-transparent rounded-full" viewBox="0 0 24 24"></svg> Loading...`
+                : button.getAttribute('data-text');
         }
 
-        /** Renders the Signup Form */
-        function renderSignup() {
-            contentDiv.innerHTML = `
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Sign Up</h2>
-                <input type="email" id="signup-email" placeholder="Email" class="form-input" required>
-                <input type="password" id="signup-password" placeholder="Password (min 6 characters)" class="form-input" required>
-                <button id="signup-btn" class="btn-primary">Create Account</button>
-                <p class="text-center text-sm mt-4 text-gray-600">
-                    Already have an account? <a href="#" id="show-login" class="text-green-600 font-semibold hover:text-green-700">Log In</a>
-                </p>
-                <div id="message-box"></div>
-            `;
-            document.getElementById('show-login').addEventListener('click', (e) => {
-                e.preventDefault();
-                renderLogin();
-            });
-            document.getElementById('signup-btn').addEventListener('click', handleSignup);
-        }
+        // --- Firestore Data Handlers ---
 
-        /** Renders the Home Screen (After Successful Auth) */
-        function renderHome() {
-            contentDiv.innerHTML = `
-                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Welcome, User!</h2>
-                <p class="text-center text-gray-600 mb-6">User ID: <span class="font-mono text-sm text-green-700 break-words">${userId || 'N/A'}</span></p>
-                <div id="home-data" class="text-center text-gray-500">
-                    <!-- Placeholder for fetching user-specific data -->
-                    Data loaded successfully! You are signed in.
-                </div>
-                <button id="logout-btn" class="btn-primary bg-red-500 hover:bg-red-600">Log Out</button>
-                <div id="message-box"></div>
-            `;
-            document.getElementById('logout-btn').addEventListener('click', handleLogout);
-        }
+        let cartUnsubscribe = null; // To store the cart listener unsubscriber
 
-        // --- Authentication Handlers ---
+        /** Sets up real-time listening for the logged-in user's cart. */
+        function setupCartListener(userId) {
+            if (cartUnsubscribe) {
+                cartUnsubscribe(); // Unsubscribe previous listener if exists
+            }
+            if (!userId || !auth.currentUser || auth.currentUser.isAnonymous) {
+                cartItems = [];
+                renderDashboard(auth.currentUser); 
+                return;
+            }
+            
+            const cartRef = getCartCollectionRef(userId);
 
-        async function handleSignup() {
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            showMessage('Signing up...', 'success');
-
-            try {
-                // Ensure auth object is available
-                if (!auth) throw new Error("Firebase Auth service is not initialized.");
-
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
+            cartUnsubscribe = onSnapshot(cartRef, (snapshot) => {
+                const fetchedItems = [];
+                snapshot.forEach(doc => {
+                    fetchedItems.push({ id: doc.id, ...doc.data() });
+                });
+                cartItems = fetchedItems;
+                console.log(`Fetched ${cartItems.length} items in cart.`);
                 
-                showMessage(`Account created for ${user.email}!`, 'success');
-                // The onAuthStateChanged listener will handle rendering the Home screen
-            } catch (error) {
-                console.error("Signup failed:", error);
-                showMessage(error.message || "Sign up failed. Please try again.", 'error');
-            }
+                // Re-render the dashboard if it's the current view
+                if (currentView === 'dashboard') {
+                    renderDashboard(auth.currentUser);
+                }
+            }, (error) => {
+                console.error("Cart Listener Error:", error);
+                // The cart is private, so permissions are expected to work for logged-in users.
+                if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                    displayMessage(`Error fetching cart: ${error.message}`, 'error', 10000);
+                }
+            });
         }
 
-        async function handleLogin() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            showMessage('Logging in...', 'success');
+        /** Handles real-time listening for the public product catalog. */
+        function setupProductListener() {
+            const productsRef = getProductsCollectionRef();
 
-            try {
-                if (!auth) throw new Error("Firebase Auth service is not initialized.");
-
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
+            onSnapshot(productsRef, (snapshot) => {
+                const fetchedProducts = [];
+                snapshot.forEach(doc => {
+                    fetchedProducts.push({ id: doc.id, ...doc.data() });
+                });
                 
-                showMessage(`Welcome back, ${user.email}!`, 'success');
-                // The onAuthStateChanged listener will handle rendering the Home screen
-            } catch (error) {
-                console.error("Login failed:", error);
-                showMessage(error.message || "Login failed. Please check your credentials.", 'error');
-            }
+                // Sort by name A-Z
+                products = fetchedProducts.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+                console.log(`Fetched ${products.length} products in real-time.`);
+                
+                // Re-render the dashboard if it's the current view
+                if (currentView === 'dashboard') {
+                    renderDashboard(auth.currentUser);
+                }
+            }, (error) => {
+                // This is the error handler for the public catalog read.
+                console.error("Product Listener Error:", error);
+                displayMessage(`Error fetching catalog: **${error.message}**. Please ensure Firebase Security Rules allow 'read' access for public data (e.g., if request.auth != null)`, 'error', 10000);
+            });
         }
-
-        async function handleLogout() {
-            try {
-                if (!auth) throw new Error("Firebase Auth service is not initialized.");
-                await signOut(auth);
-            } catch (error) {
-                console.error("Logout error:", error);
-                showMessage("Logout failed.", 'error');
-            }
-        }
-
-        // --- Core Initialization ---
-
-        /** Initializes Firebase services and authentication state listener. */
-        function initializeFirebase() {
-            if (!firebaseConfig) {
-                showMessage("CRITICAL ERROR: Firebase configuration globals missing. Please ensure '__firebase_config' is set correctly in your environment variables.", 'error');
-                console.error("CRITICAL ERROR: __firebase_config is missing or invalid.");
+        
+        /** Seeds the public product catalog with initial data. */
+        async function handleSeedCatalog() {
+            const user = auth.currentUser;
+            if (!user || user.isAnonymous) {
+                displayMessage("Please log in to seed the catalog.", 'error');
                 return;
             }
 
-            try {
-                // 1. Initialize App
-                app = initializeApp(firebaseConfig);
-                
-                // 2. Initialize Auth and Firestore
-                auth = getAuth(app);
-                db = getFirestore(app);
-                
-                // 3. Handle initial authentication
-                if (initialAuthToken) {
-                    signInWithCustomToken(auth, initialAuthToken)
-                        .then(() => console.log("Signed in with custom token."))
-                        .catch(err => {
-                            console.error("Custom token sign-in failed:", err);
-                            // Fallback to anonymous sign-in if custom token fails
-                            signInAnonymously(auth).catch(anonErr => console.error("Anonymous sign-in failed:", anonErr));
-                        });
-                } else {
-                    // If no initial token, sign in anonymously for initial setup/database access
-                    signInAnonymously(auth)
-                        .then(() => console.log("Signed in anonymously."))
-                        .catch(err => console.error("Anonymous sign-in failed:", err));
-                }
+            const initialProducts = [
+                { name: "Organic Apple", price: 0.99 },
+                { name: "Fresh Milk (Gallon)", price: 4.50 },
+                { name: "Whole Wheat Bread", price: 2.75 },
+                { name: "Detergent Pods (20ct)", price: 12.00 },
+                { name: "Paper Towels (6 Rolls)", price: 8.99 }
+            ];
 
-                // 4. Set up Auth State Listener
-                onAuthStateChanged(auth, (user) => {
-                    isAuthReady = true; // Auth check has completed
-                    if (user) {
-                        userId = user.uid;
-                        // User is signed in (either anonymously or via email/password)
-                        console.log("Auth State Changed: User is logged in.", userId);
-                        renderHome();
-                    } else {
-                        userId = null;
-                        // User is signed out, show login/signup
-                        console.log("Auth State Changed: User is signed out.");
-                        renderLogin();
-                    }
+            const batch = writeBatch(db);
+            const productsRef = getProductsCollectionRef();
+            const addedBy = user.email || user.uid;
+
+            initialProducts.forEach(product => {
+                // Since we don't have existing document IDs, use addDoc logic which generates new ones
+                const newDocRef = doc(productsRef); // Generate a new document reference with an auto ID
+                batch.set(newDocRef, {
+                    ...product,
+                    addedBy: addedBy,
+                    createdAt: new Date(),
                 });
+            });
 
-            } catch (e) {
-                console.error("CRITICAL ERROR: Firebase Initialization Failed.", e);
-                // Display the specific initialization error to the user
-                showMessage("CRITICAL ERROR: App Initialization Failed. Check your console for details, likely due to an invalid configuration key format or missing services. Error: " + e.message, 'error');
-                
-                // Fallback to show login/signup structure even if services failed
-                renderLogin(); 
+            toggleLoading('seed-btn', true);
+
+            try {
+                await batch.commit();
+                displayMessage(`Successfully added ${initialProducts.length} initial products!`, 'success');
+            } catch (error) {
+                console.error("Failed to seed catalog:", error);
+                displayMessage(`Failed to seed catalog: ${error.message}`, 'error');
+            } finally {
+                toggleLoading('seed-btn', false);
             }
         }
 
-        // Run the main initialization logic when the page loads
-        initializeFirebase();
-    </script>
-    
-</body>
-</html>
+
+        /** Adds a product to the user's private shopping cart, incrementing quantity if it exists. */
+        async function handleAddToCart(productId, name, price) {
+            const user = auth.currentUser;
+            if (!user || user.isAnonymous) {
+                displayMessage("Please log in to add items to your cart.", '
