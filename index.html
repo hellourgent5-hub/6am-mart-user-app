@@ -5,7 +5,7 @@ import {
     signInAnonymously, 
     signInWithCustomToken, 
     onAuthStateChanged, 
-    signOut,
+    signOut, 
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword
 } from 'firebase/auth';
@@ -31,6 +31,9 @@ setLogLevel('debug');
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+// NEW ADMIN PATH DEFINITION
+const ADMIN_DOC_PATH = `artifacts/${appId}/configuration/admin_user`;
 
 // --- Mock Data for Seeding ---
 const SEED_CATEGORIES = [
@@ -89,23 +92,37 @@ const App = () => {
                     
                     if (firestore) {
                         try {
-                            // Check or create the Admin Config document
-                            const adminConfigRef = doc(firestore, `artifacts/${appId}/config/admin`);
-                            const adminConfigSnap = await getDoc(adminConfigRef);
+                            console.log(`Attempting Admin check/creation for user: ${user.uid}`);
+                            const adminConfigRef = doc(firestore, ADMIN_DOC_PATH);
                             
-                            if (!adminConfigSnap.exists()) {
-                                // If admin config doesn't exist, create it. This will only happen once.
+                            // 1. Try to create the admin document (only succeeds if it doesn't exist AND user has 'create' permission)
+                            // This relies on the security rule allowing 'create' for any authenticated user.
+                            try {
                                 await setDoc(adminConfigRef, { 
                                     userId: user.uid, 
                                     createdAt: serverTimestamp() 
-                                });
+                                }, { merge: false });
+                                
+                                // Success means this user is the first and is now the admin
                                 setIsAdmin(true);
-                            } else {
-                                setIsAdmin(adminConfigSnap.data().userId === user.uid);
+                                setMessage('Welcome! You are the first user and have been set as Admin. You can now seed the catalog.');
+                            } catch (e) {
+                                // The document likely already exists, or the rules failed the 'create' attempt.
+                                // 2. Now try to read the document (requires 'read' permission)
+                                const adminConfigSnap = await getDoc(adminConfigRef);
+                                
+                                if (adminConfigSnap.exists()) {
+                                    setIsAdmin(adminConfigSnap.data().userId === user.uid);
+                                } else {
+                                    // Should not happen if setDoc failed due to existing document, but good for safety
+                                    setIsAdmin(false);
+                                    throw new Error("Could not create nor read admin document.");
+                                }
                             }
                         } catch (error) {
-                            // This is the error the user reported. It's security rule related.
                             console.error("Admin check/creation failed:", error);
+                            // Updated message to reflect the current path for debugging
+                            setMessage(`FATAL ERROR: Could not verify Admin status. This is due to incorrect Firestore Security Rules for the document '${ADMIN_DOC_PATH}'. Please update and publish your rules.`); 
                             setIsAdmin(false);
                         }
                     } 
@@ -138,6 +155,20 @@ const App = () => {
             setMessage(`Initialization Failed: ${error.message}`);
         }
     }, [initialAuthToken]);
+
+
+    // --- Authentication Actions ---
+    const handleSignOut = async () => {
+        if (auth) {
+            try {
+                await signOut(auth);
+                setMessage("Signed out successfully. Sign in again to re-check admin status.");
+            } catch (error) {
+                console.error("Sign out failed:", error);
+                setMessage(`Sign out failed: ${error.message}`);
+            }
+        }
+    };
 
 
     // --- Firestore Listeners (Store Catalog) ---
@@ -175,7 +206,7 @@ const App = () => {
 
     const handleSeedCatalog = async () => {
         if (!db || !isAdmin) {
-            setMessage("Seeding Failed: Only the authorized user can seed the catalog.");
+            setMessage("Seeding Failed: Only the authorized admin user can seed the catalog.");
             return;
         }
 
@@ -335,24 +366,34 @@ const App = () => {
                 <div className="p-4 space-y-6">
 
                     {/* Authentication Status / Admin Control */}
-                    <div className="p-3 bg-gray-100 rounded-xl flex justify-between items-center text-sm text-gray-700">
+                    <div className="p-3 bg-gray-100 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm text-gray-700 space-y-2 sm:space-y-0">
                         {isAuthReady ? (
-                            <span className="font-medium text-green-700">Logged in: {authEmail}</span>
+                            <>
+                                <span className="font-medium text-green-700 truncate mr-4">Logged in: {authEmail}</span>
+                                <div className="flex space-x-2">
+                                    {isAdmin && (
+                                        <button
+                                            onClick={handleSeedCatalog}
+                                            className="px-3 py-1 bg-yellow-500 text-white font-medium rounded-full text-xs hover:bg-yellow-600 transition-colors whitespace-nowrap"
+                                        >
+                                            Seed Catalog
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="px-3 py-1 bg-red-500 text-white font-medium rounded-full text-xs hover:bg-red-600 transition-colors whitespace-nowrap"
+                                    >
+                                        Logout
+                                    </button>
+                                </div>
+                            </>
                         ) : (
                             <span className="font-medium text-yellow-600">Loading Authentication...</span>
-                        )}
-                        {isAdmin && (
-                            <button
-                                onClick={handleSeedCatalog}
-                                className="px-3 py-1 bg-yellow-500 text-white font-medium rounded-full text-xs hover:bg-yellow-600 transition-colors"
-                            >
-                                Seed Catalog
-                            </button>
                         )}
                     </div>
                     
                     {message && (
-                        <div className={`p-3 rounded-lg text-sm font-medium ${message.includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        <div className={`p-3 rounded-lg text-sm font-medium ${message.includes('success') || message.includes('Welcome') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                             {message}
                         </div>
                     )}
@@ -404,6 +445,9 @@ const App = () => {
                     </p>
                     <p className="text-xs text-gray-500">
                         **ADMIN**: {isAdmin ? 'Yes' : 'No'}
+                    </p>
+                    <p className="text-xs text-gray-500 break-words font-semibold">
+                        **ADMIN CHECK PATH**: {ADMIN_DOC_PATH}
                     </p>
                 </div>
 
