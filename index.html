@@ -3,27 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>6amMart Product Catalog & Cart</title>
+    <title>Morning Mart Product Catalog & Cart</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; }
         .app-card {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            max-width: 900px; /* Increased width for two-column layout */
+            max-width: 900px;
             width: 95%;
             transition: all 0.3s ease-in-out;
         }
         .green-btn {
-            background-color: #10B981; /* Emerald 500 */
+            background-color: #10B981;
             transition: background-color 0.2s;
         }
         .green-btn:hover {
-            background-color: #059669; /* Emerald 600 */
+            background-color: #059669;
         }
         .input-field {
-            border: 2px solid #D1FAE5; /* Emerald 100 border */
-            background-color: #F0FDF4; /* Emerald 50 background */
+            border: 2px solid #D1FAE5;
+            background-color: #F0FDF4;
             transition: all 0.2s;
         }
         .input-field:focus {
@@ -44,7 +44,7 @@
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="app-card bg-white p-6 sm:p-8 rounded-2xl">
-        <h1 class="text-3xl font-bold text-center mb-2 text-green-700">6amMart Marketplace</h1>
+        <h1 class="text-3xl font-bold text-center mb-2 text-green-700">Morning Mart Marketplace</h1>
         
         <!-- Status Box for Errors/Success -->
         <div id="message-box" class="mt-4 p-3 rounded-lg text-sm font-medium transition duration-300 hidden"></div>
@@ -58,45 +58,31 @@
     <!-- Firebase SDK Imports -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, setLogLevel, doc, setDoc, collection, onSnapshot, addDoc, updateDoc, deleteDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, setLogLevel, doc, setDoc, collection, onSnapshot, updateDoc, deleteDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Core Setup ---
         setLogLevel('debug');
 
-        // Global Variable Fallback (Using your provided config)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-        
-        let firebaseConfig;
-        if (firebaseConfigString) {
-            try {
-                firebaseConfig = JSON.parse(firebaseConfigString);
-            } catch (e) {
-                console.error("Error parsing __firebase_config:", e);
-                displayMessage("Configuration Error: Invalid Firebase Config format.", 'error');
-                throw new Error("Invalid Firebase Config.");
-            }
-        } else {
-            // Hardcoded fallback config from user prompt (for editor use)
-            firebaseConfig = {
-                apiKey: "AIzaSyDm35wM7oGq06MEc7rsd9ZrCijbtUAZWNY",
-                authDomain: "am-mart-database.firebaseapp.com",
-                projectId: "am-mart-database",
-                storageBucket: "am-mart-database.firebasestorage.app",
-                messagingSenderId: "453648131188",
-                appId: "1:453648131188:web:27e8cb59e5b47c0e11dd21",
-                measurementId: "G-GRH69XMND7"
-            };
-        }
+        // Hardcoded Firebase configuration from your project settings (to ensure connection reliability)
+        const appId = '1:453648131188:web:27e8cb59e5b47c0e11dd21';
+        const firebaseConfig = {
+            apiKey: "AIzaSyDm35wM7oGq06MEc7rsd9ZrCijbtUAZWNY",
+            authDomain: "am-mart-database.firebaseapp.com",
+            projectId: "am-mart-database",
+            storageBucket: "am-mart-database.firebasestorage.app",
+            messagingSenderId: "453648131188",
+            appId: appId,
+            measurementId: "G-GRH69XMND7"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let isAuthReady = false;
-        let products = []; // Public product catalog
-        let cartItems = []; // Private user shopping cart
+        let products = [];
+        let cartItems = [];
         let currentView = 'login'; 
         let productListenerInitialized = false; 
         const appContainer = document.getElementById('app-container');
@@ -120,6 +106,11 @@
 
         /** Displays messages in the dedicated message box. */
         function displayMessage(message, type = 'info', duration = 4000) {
+            // Extract the user-friendly part of a Firebase Error object
+            if (message instanceof Error) {
+                message = message.message.replace('Firebase: Error ', '');
+            }
+            
             messageBox.textContent = message;
             messageBox.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800', 'bg-gray-200', 'text-gray-800');
             
@@ -149,16 +140,17 @@
 
         // --- Firestore Data Handlers ---
 
-        let cartUnsubscribe = null; // To store the cart listener unsubscriber
+        let cartUnsubscribe = null;
 
         /** Sets up real-time listening for the logged-in user's cart. */
         function setupCartListener(userId) {
             if (cartUnsubscribe) {
-                cartUnsubscribe(); // Unsubscribe previous listener if exists
+                cartUnsubscribe();
             }
-            if (!userId || !auth.currentUser || auth.currentUser.isAnonymous) {
+            // Check if user is logged in (not anonymous) before setting up private cart listener
+            if (!userId || auth.currentUser.isAnonymous) {
                 cartItems = [];
-                renderDashboard(auth.currentUser); 
+                if (currentView === 'dashboard') renderDashboard(auth.currentUser); 
                 return;
             }
             
@@ -169,24 +161,21 @@
                 snapshot.forEach(doc => {
                     fetchedItems.push({ id: doc.id, ...doc.data() });
                 });
-                cartItems = fetchedItems;
-                console.log(`Fetched ${cartItems.length} items in cart.`);
-                
-                // Re-render the dashboard if it's the current view
+                // Sort items by name for consistent cart display
+                cartItems = fetchedItems.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
                 if (currentView === 'dashboard') {
                     renderDashboard(auth.currentUser);
                 }
             }, (error) => {
                 console.error("Cart Listener Error:", error);
-                // The cart is private, so permissions are expected to work for logged-in users.
-                if (auth.currentUser && !auth.currentUser.isAnonymous) {
-                    displayMessage(`Error fetching cart: ${error.message}`, 'error', 10000);
-                }
+                displayMessage(error, 'error', 10000);
             });
         }
 
         /** Handles real-time listening for the public product catalog. */
         function setupProductListener() {
+            if (productListenerInitialized) return;
+
             const productsRef = getProductsCollectionRef();
 
             onSnapshot(productsRef, (snapshot) => {
@@ -195,19 +184,16 @@
                     fetchedProducts.push({ id: doc.id, ...doc.data() });
                 });
                 
-                // Sort by name A-Z
                 products = fetchedProducts.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-                console.log(`Fetched ${products.length} products in real-time.`);
+                productListenerInitialized = true;
                 
-                // Re-render the dashboard if it's the current view
                 if (currentView === 'dashboard') {
                     renderDashboard(auth.currentUser);
                 }
             }, (error) => {
-                // This is the error handler for the public catalog read.
                 console.error("Product Listener Error:", error);
-                displayMessage(`Error fetching catalog: **${error.message}**. Please ensure Firebase Security Rules allow 'read' access for public data (e.g., if request.auth != null)`, 'error', 10000);
+                displayMessage(error, 'error', 10000);
             });
         }
         
@@ -215,7 +201,7 @@
         async function handleSeedCatalog() {
             const user = auth.currentUser;
             if (!user || user.isAnonymous) {
-                displayMessage("Please log in to seed the catalog.", 'error');
+                displayMessage("Please log in with a registered account to seed the catalog.", 'error');
                 return;
             }
 
@@ -227,15 +213,20 @@
                 { name: "Paper Towels (6 Rolls)", price: 8.99 }
             ];
 
+            if (products.length > 0) {
+                 displayMessage("Catalog is already seeded.", 'info');
+                 return;
+            }
+
             const batch = writeBatch(db);
             const productsRef = getProductsCollectionRef();
             const addedBy = user.email || user.uid;
 
             initialProducts.forEach(product => {
-                // Since we don't have existing document IDs, use addDoc logic which generates new ones
-                const newDocRef = doc(productsRef); // Generate a new document reference with an auto ID
+                const newDocRef = doc(productsRef); 
                 batch.set(newDocRef, {
                     ...product,
+                    price: parseFloat(product.price.toFixed(2)),
                     addedBy: addedBy,
                     createdAt: new Date(),
                 });
@@ -248,15 +239,334 @@
                 displayMessage(`Successfully added ${initialProducts.length} initial products!`, 'success');
             } catch (error) {
                 console.error("Failed to seed catalog:", error);
-                displayMessage(`Failed to seed catalog: ${error.message}`, 'error');
+                displayMessage(error, 'error');
             } finally {
                 toggleLoading('seed-btn', false);
             }
         }
 
 
-        /** Adds a product to the user's private shopping cart, incrementing quantity if it exists. */
+        /** Adds a product to the user's private shopping cart. */
         async function handleAddToCart(productId, name, price) {
             const user = auth.currentUser;
             if (!user || user.isAnonymous) {
-                displayMessage("Please log in to add items to your cart.", '
+                displayMessage("Please log in to add items to your cart.", 'error');
+                return;
+            }
+
+            const cartRef = getCartCollectionRef(user.uid);
+            // Use the product ID as the document ID for the cart item for easy lookup
+            const cartItemRef = doc(cartRef, productId); 
+
+            try {
+                const docSnap = await getDoc(cartItemRef);
+
+                if (docSnap.exists()) {
+                    const currentQty = docSnap.data().quantity || 0;
+                    await updateDoc(cartItemRef, {
+                        quantity: currentQty + 1,
+                        updatedAt: new Date()
+                    });
+                    displayMessage(`Added another **${name}** to cart!`, 'success');
+                } else {
+                    await setDoc(cartItemRef, {
+                        productId: productId,
+                        name: name,
+                        price: price,
+                        quantity: 1,
+                        addedAt: new Date(),
+                    });
+                    displayMessage(`**${name}** added to cart!`, 'success');
+                }
+            } catch (error) {
+                console.error("Failed to add to cart:", error);
+                displayMessage(error, 'error');
+            }
+        }
+        
+        /** Removes a single unit of a product from the cart. */
+        async function handleRemoveItem(productId, name) {
+            const user = auth.currentUser;
+            if (!user || user.isAnonymous) return;
+
+            const cartRef = getCartCollectionRef(user.uid);
+            const cartItemRef = doc(cartRef, productId);
+
+            try {
+                const docSnap = await getDoc(cartItemRef);
+
+                if (docSnap.exists()) {
+                    const currentQty = docSnap.data().quantity;
+                    if (currentQty > 1) {
+                        await updateDoc(cartItemRef, {
+                            quantity: currentQty - 1,
+                            updatedAt: new Date()
+                        });
+                        displayMessage(`Removed one unit of **${name}** from cart.`, 'info');
+                    } else {
+                        await deleteDoc(cartItemRef);
+                        displayMessage(`**${name}** removed entirely from cart.`, 'info');
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to remove from cart:", error);
+                displayMessage(error, 'error');
+            }
+        }
+        
+        /** Deletes all items from the cart (Checkout). */
+        async function handleCheckout() {
+             const user = auth.currentUser;
+            if (!user || user.isAnonymous || cartItems.length === 0) return;
+            
+            toggleLoading('checkout-btn', true);
+
+            const batch = writeBatch(db);
+            const cartRef = getCartCollectionRef(user.uid);
+
+            cartItems.forEach(item => {
+                batch.delete(doc(cartRef, item.id));
+            });
+
+            try {
+                await batch.commit();
+                displayMessage("Checkout successful! Your cart has been emptied.", 'success');
+            } catch (error) {
+                console.error("Checkout failed:", error);
+                displayMessage(error, 'error');
+            } finally {
+                toggleLoading('checkout-btn', false);
+            }
+        }
+
+        // --- Render Functions ---
+
+        /** Renders the Authentication (Login/Signup) view. */
+        function renderAuthView() {
+            const isLoginView = currentView === 'login';
+            currentView = isLoginView ? 'login' : 'signup'; // Ensure currentView is explicitly set
+            
+            appContainer.innerHTML = `
+                <div class="p-4 sm:p-6">
+                    <h2 class="text-2xl font-semibold text-center mb-6 text-green-600">${isLoginView ? 'Login to Morning Mart' : 'Sign Up for Morning Mart'}</h2>
+                    
+                    <input type="email" id="email" placeholder="Email" class="input-field w-full p-3 mb-4 rounded-lg focus:ring-4 focus:ring-green-100" value="user@example.com">
+                    <input type="password" id="password" placeholder="Password" class="input-field w-full p-3 mb-6 rounded-lg focus:ring-4 focus:ring-green-100">
+                    
+                    <button id="auth-btn" data-text="${isLoginView ? 'Log In' : 'Create Account'}" class="green-btn w-full text-white font-bold p-3 rounded-lg shadow-md hover:shadow-lg">
+                        ${isLoginView ? 'Log In' : 'Create Account'}
+                    </button>
+
+                    <div class="text-center mt-4 text-gray-600">
+                        ${isLoginView ? 'Need an account?' : 'Already have an account?'}
+                        <button id="toggle-auth" class="text-green-600 font-semibold hover:text-green-800">
+                            ${isLoginView ? 'Sign Up' : 'Log In'}
+                        </button>
+                        <p class="mt-4 text-sm text-gray-500">
+                            Or proceed as a 
+                            <button id="sign-in-anonymous" class="text-green-600 font-semibold hover:text-green-800">Guest</button>
+                            (Cart will not be saved)
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('auth-btn').onclick = isLoginView ? handleLogin : handleSignUp;
+            document.getElementById('toggle-auth').onclick = () => {
+                currentView = isLoginView ? 'signup' : 'login';
+                renderAuthView();
+            };
+            document.getElementById('sign-in-anonymous').onclick = handleAnonymousLogin;
+        }
+
+        /** Renders the main Dashboard view. */
+        function renderDashboard(user) {
+            currentView = 'dashboard';
+            const email = user.email || 'Guest User (Anonymous)';
+            const userId = user.uid;
+            
+            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
+
+            // Product List HTML
+            const productListHTML = products.length === 0
+                ? `<p class="text-center text-gray-500 p-8 col-span-2">No products found. ${!user.isAnonymous ? 'Click "Seed Catalog" to add some test data.' : 'Please log in or use a non-anonymous account to seed products.'}</p>`
+                : products.map(p => `
+                    <div class="flex justify-between items-center p-3 border-b border-green-100 last:border-b-0">
+                        <div>
+                            <p class="font-medium text-gray-800">${p.name}</p>
+                            <p class="text-sm text-green-600 font-semibold">\$${p.price.toFixed(2)}</p>
+                        </div>
+                        <button onclick="handleAddToCart('${p.id}', '${p.name.replace(/'/g, "\\'")}', ${p.price})" class="bg-green-100 text-green-600 text-xs font-bold py-1 px-3 rounded-full hover:bg-green-200 transition duration-150 active:scale-95">
+                            Add
+                        </button>
+                    </div>
+                `).join('');
+
+            // Cart List HTML
+            const cartListHTML = cartItems.length === 0
+                ? `<p class="text-center text-gray-500 p-4">Your cart is empty.</p>`
+                : cartItems.map(item => `
+                    <div class="flex justify-between items-center p-3 border-b border-green-100 last:border-b-0">
+                        <div class="flex-grow">
+                            <p class="font-medium text-gray-800">${item.name}</p>
+                            <p class="text-xs text-gray-500">\$${item.price.toFixed(2)} x ${item.quantity}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                             <span class="font-bold text-green-700 w-10 text-right">\$${(item.price * item.quantity).toFixed(2)}</span>
+                            <button onclick="handleRemoveItem('${item.id}', '${item.name.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 p-1 rounded-full bg-red-100 active:scale-95">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+
+            appContainer.innerHTML = `
+                <!-- Header and Actions -->
+                <div class="flex justify-between items-center mb-6 border-b pb-4 border-green-200">
+                    <div>
+                        <p class="text-sm text-gray-600">Logged in as: <span class="font-semibold text-green-800">${email}</span></p>
+                        <p class="text-xs text-gray-500 break-all">User ID: ${userId}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        ${!user.isAnonymous ? `<button id="seed-btn" data-text="Seed Catalog" class="bg-yellow-500 text-white text-xs font-bold py-2 px-3 rounded-full hover:bg-yellow-600 transition duration-150 active:scale-95">Seed Catalog</button>` : ''}
+                        <button id="logout-btn" data-text="${user.isAnonymous ? 'Logout Guest' : 'Logout'}" class="bg-red-500 text-white text-xs font-bold py-2 px-3 rounded-full hover:bg-red-600 transition duration-150 active:scale-95">
+                            ${user.isAnonymous ? 'Logout Guest' : 'Logout'}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Product Catalog (2/3 width) -->
+                    <div class="lg:col-span-2 bg-green-50 p-4 rounded-xl shadow-inner">
+                        <h3 class="text-xl font-bold mb-4 text-green-700 border-b pb-2 border-green-200">Morning Mart Product Catalog (${products.length} Items)</h3>
+                        <div class="divide-y divide-green-200 max-h-[500px] overflow-y-auto">
+                            ${productListHTML}
+                        </div>
+                    </div>
+
+                    <!-- Shopping Cart (1/3 width) -->
+                    <div class="lg:col-span-1 bg-white border border-green-300 p-4 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-green-700 border-b pb-2 border-green-200">Shopping Cart</h3>
+                        
+                        <div class="max-h-[350px] overflow-y-auto mb-4 divide-y divide-green-100">
+                            ${cartListHTML}
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-green-300">
+                            <div class="flex justify-between font-bold text-lg mb-4">
+                                <span>Total:</span>
+                                <span class="text-green-700">\$${total}</span>
+                            </div>
+                            <button id="checkout-btn" data-text="Checkout" ${cartItems.length === 0 ? 'disabled' : ''} class="green-btn w-full text-white font-bold p-3 rounded-lg shadow-md hover:shadow-lg disabled:opacity-50">
+                                Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('logout-btn').onclick = handleLogout;
+            if (document.getElementById('seed-btn')) {
+                document.getElementById('seed-btn').onclick = handleSeedCatalog;
+            }
+            document.getElementById('checkout-btn').onclick = handleCheckout;
+            
+            // Expose handlers to the global scope for inline onclick events
+            window.handleAddToCart = handleAddToCart;
+            window.handleRemoveItem = handleRemoveItem;
+            window.handleSeedCatalog = handleSeedCatalog;
+            window.handleCheckout = handleCheckout;
+        }
+
+        // --- Auth Handlers ---
+
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            toggleLoading('auth-btn', true);
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                displayMessage("Logged in successfully!", 'success');
+            } catch (error) {
+                console.error("Login failed:", error);
+                displayMessage(error, 'error');
+            } finally {
+                toggleLoading('auth-btn', false);
+            }
+        }
+
+        async function handleSignUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            toggleLoading('auth-btn', true);
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                displayMessage("Account created and logged in successfully!", 'success');
+            } catch (error) {
+                console.error("Sign Up failed:", error);
+                displayMessage(error, 'error');
+            } finally {
+                toggleLoading('auth-btn', false);
+            }
+        }
+
+        async function handleAnonymousLogin() {
+            toggleLoading('sign-in-anonymous', true);
+             try {
+                await signInAnonymously(auth);
+                displayMessage("Signed in as Guest. Log in or Sign up to save your cart.", 'info');
+            } catch (error) {
+                console.error("Anonymous Sign In failed:", error);
+                displayMessage(error, 'error');
+            } finally {
+                 // Re-render auth view to hide the now-logged-in button state, if necessary
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                if (cartUnsubscribe) {
+                    cartUnsubscribe();
+                    cartUnsubscribe = null;
+                }
+                await signOut(auth);
+                displayMessage("Logged out successfully.", 'info');
+            } catch (error) {
+                console.error("Logout failed:", error);
+                displayMessage(error, 'error');
+            }
+        }
+
+        // --- Main App Initialization ---
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // User is authenticated (registered or anonymous)
+                setupProductListener(); 
+                setupCartListener(user.uid);
+                renderDashboard(user);
+
+            } else {
+                // User is logged out
+                if (cartUnsubscribe) {
+                    cartUnsubscribe();
+                    cartUnsubscribe = null;
+                }
+                products = [];
+                cartItems = [];
+                currentView = 'login'; // Reset to default login view
+                renderAuthView();
+            }
+            isAuthReady = true;
+        });
+
+        if (!isAuthReady) {
+             renderAuthView();
+        }
+
+    </script>
+</body>
+</html>
