@@ -4,559 +4,279 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>6amMart User App</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom Styles for Mobile-First Design */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f9fc;
+            background-color: #f0fdf4; /* Light green background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
             min-height: 100vh;
+            padding: 20px;
         }
-
-        .app-view {
-            min-height: calc(100vh - 120px); /* Ensures view takes up space */
-            padding-bottom: 70px; /* Space for fixed footer */
-        }
-
-        /* Basic Card Styling */
-        .card {
-            background-color: white;
-            border-radius: 1rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-        }
-
-        /* Input and Button Styles */
-        input[type="email"], input[type="password"], input[type="text"] {
+        #app-container {
             width: 100%;
-            padding: 0.75rem;
-            margin-bottom: 1rem;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.5rem;
-            transition: border-color 0.2s;
+            max-width: 400px;
+            background-color: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            margin-top: 50px;
         }
-        input:focus {
-            outline: none;
-            border-color: #10b981;
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-sizing: border-box;
         }
-
         .btn-primary {
             width: 100%;
-            padding: 0.75rem;
-            background-color: #10b981; /* Green */
+            padding: 12px;
+            margin-top: 20px;
+            background-color: #10b981; /* Emerald green */
             color: white;
-            border-radius: 0.5rem;
-            font-weight: 600;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
             transition: background-color 0.2s;
         }
         .btn-primary:hover {
-            background-color: #059669; /* Darker Green */
+            background-color: #059669;
         }
-        
-        /* Message Box Styling */
-        #message-box {
-            position: fixed;
-            top: 1rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-            min-width: 300px;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.5s ease-in-out;
-            opacity: 0;
-            visibility: hidden;
+        .error-message {
+            color: #ef4444; /* Red */
+            margin-top: 10px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #fecaca;
+            background-color: #fef2f2;
+            border-radius: 8px;
         }
-        .message-success { background-color: #10b981; }
-        .message-error { background-color: #ef4444; }
-        .message-show { opacity: 1; visibility: visible; }
+        .success-message {
+            color: #10b981; /* Green */
+            margin-top: 10px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #d1fae5;
+            background-color: #f0fdf4;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Message Box for alerts/errors -->
-    <div id="message-box" class="message-error"></div>
-
-    <!-- Main Application Container -->
-    <div id="app-container" class="max-w-md mx-auto p-4">
-        <!-- Content will be dynamically inserted here -->
+    <div id="app-container">
+        <h1 class="text-3xl font-bold text-center text-green-700 mb-6">Welcome to 6amMart</h1>
+        <div id="content"></div>
     </div>
 
-    <!-- Fixed Bottom Navigation (Only visible when user is logged in) -->
-    <footer id="nav-footer" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg hidden">
-        <div class="flex justify-around items-center h-16 text-gray-500">
-            <button class="nav-btn flex flex-col items-center p-2 text-green-600" data-page="home">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-                <span class="text-xs">Home</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center p-2" data-page="cart">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2zm-8.31-4l.9-1.63L16 9.87l3.6-5.87-1.14-.38L16 8.5 8.1 13.5l-1.3-.23.15-.31L4.25 6H2v2h2.25l3.25 7z"/></svg>
-                <span class="text-xs">Cart</span>
-            </button>
-            <button class="nav-btn flex flex-col items-center p-2" data-page="account">
-                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                <span class="text-xs">Account</span>
-            </button>
-        </div>
-    </footer>
-
-    <!-- Firebase Imports -->
+    <!-- Firebase Imports and Logic -->
     <script type="module">
-        // Using a single version for all imports to maintain consistency
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged, 
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            doc, 
-            onSnapshot, 
-            addDoc, 
-            setDoc,
-            query,
-            where,
-            setLogLevel 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global Variables
+        // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let app = null;
-        let auth = null;
-        let db = null;
+        // Firebase imports from CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-lite.js";
+        
+        // Disable logging in production for cleaner console (optional)
+        // setLogLevel('silent'); // Uncomment for production
+
+        let app, auth, db;
         let userId = null;
-        let currentPage = 'login'; // Start on login page
-        let isAuthReady = false; // New flag to ensure listeners wait for authentication
-        let publicUnsubscribers = []; // Array to hold listener unsubscribe functions
+        let isAuthReady = false;
+
+        const contentDiv = document.getElementById('content');
 
         // --- Utility Functions ---
 
-        function showMessage(message, type = 'error', duration = 4000) {
-            const messageBox = document.getElementById('message-box');
-            messageBox.textContent = message;
-            messageBox.className = 'message-show';
-            
-            // Apply correct styling
-            messageBox.classList.remove('message-success', 'message-error');
-            messageBox.classList.add(type === 'success' ? 'message-success' : 'message-error');
-
-            setTimeout(() => {
-                messageBox.classList.remove('message-show');
-            }, duration);
-        }
-
-        // --- Firebase Initialization and Authentication ---
-
-        async function initializeFirebase() {
-            try {
-                // Set Firestore logging for debugging
-                setLogLevel('Debug'); 
-                
-                const firebaseConfig = JSON.parse(firebaseConfigString);
-                
-                // CRITICAL CHECK: Ensure configuration is available
-                if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
-                    // Render the UI even if config is missing, just show the error message.
-                    showMessage("CRITICAL ERROR: Firebase configuration is missing. Ensure Admin app is deployed in Canvas.", 'error', 60000);
-                    // Still render the login page, but auth will fail later.
-                    renderAuthPage(document.getElementById('app-container'), 'login');
-                    return;
-                }
-
-                // 1. Initialize App
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app); // Get Auth instance using the app
-                db = getFirestore(app); // Get Firestore instance using the app
-
-                // 2. Auth State Listener
-                onAuthStateChanged(auth, (user) => {
-                    isAuthReady = true; // Auth state has been checked at least once
-                    if (user) {
-                        userId = user.uid;
-                        console.log("User authenticated:", userId, user.isAnonymous ? '(Anonymous)' : '(Full User)');
-                        // User is logged in (full or anonymous)
-                        // Only navigate to home if they are a full user OR if we are currently on the home page (to refresh data)
-                        if (!user.isAnonymous || currentPage === 'home') {
-                            navigate('home');
-                            document.getElementById('nav-footer').classList.remove('hidden');
-                            document.getElementById('app-container').classList.add('app-view');
-                        }
-                    } else {
-                        userId = null;
-                        console.log("User logged out or not authenticated.");
-                        // User is logged out, navigate to Login
-                        navigate('login');
-                        document.getElementById('nav-footer').classList.add('hidden');
-                        document.getElementById('app-container').classList.remove('app-view');
-                        // Ensure a temporary user is logged in for data access (Anonymously)
-                        handleInitialSignIn();
-                    }
-                });
-
-                // Check for initial custom token and sign in if necessary
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                }
-
-            } catch (error) {
-                console.error("Firebase Initialization Failed:", error);
-                showMessage("Initialization Failed: " + error.message, 'error', 8000);
-                // Also render the login page if init fails after the config check
-                renderAuthPage(document.getElementById('app-container'), 'login');
+        /** Displays messages to the user. */
+        function showMessage(text, type = 'error') {
+            let messageDiv = document.getElementById('message-box');
+            if (!messageDiv) {
+                messageDiv = document.createElement('div');
+                messageDiv.id = 'message-box';
+                contentDiv.prepend(messageDiv);
             }
-        }
-        
-        async function handleInitialSignIn() {
-             // If no user is logged in (after onAuthStateChanged runs), sign in anonymously 
-             // to allow the user to read public collections (like stores/products/categories)
-             if (!auth.currentUser) {
-                 try {
-                     // We await the anonymous sign-in here. When it completes, 
-                     // onAuthStateChanged will be triggered, and that listener will handle navigation.
-                     await signInAnonymously(auth);
-                     console.log("Attempted anonymous sign in.");
-                 } catch(error) {
-                     console.error("Anonymous sign in failed:", error);
-                 }
-             }
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = text;
         }
 
-        // --- Authentication Functions ---
-
-        async function handleSignUp(email, password) {
-            try {
-                if (!auth) throw new Error("Authentication service is not initialized.");
-                // Ensure anonymous user signs out before creating a full user
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
-                    await signOut(auth);
-                }
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                console.log("Sign up successful:", userCredential.user.uid);
-                showMessage("Account created successfully! Welcome.", 'success');
-                // The onAuthStateChanged listener handles navigation to 'home'
-            } catch (error) {
-                console.error("Sign up failed:", error);
-                // Firebase Auth errors often include a code like (auth/email-already-in-use)
-                const errorMessage = error.message.includes('Firebase:') ? error.message.split('Firebase:')[1].trim() : error.message;
-                showMessage("Signup Failed: " + errorMessage);
-            }
-        }
-
-        async function handleLogin(email, password) {
-            try {
-                if (!auth) throw new Error("Authentication service is not initialized.");
-                 // Ensure anonymous user signs out before logging in as a full user
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
-                    await signOut(auth);
-                }
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                console.log("Login successful:", userCredential.user.uid);
-                showMessage("Login successful!", 'success');
-                // The onAuthStateChanged listener handles navigation to 'home'
-            } catch (error) {
-                console.error("Login failed:", error);
-                const errorMessage = error.message.includes('Firebase:') ? error.message.split('Firebase:')[1].trim() : error.message;
-                showMessage("Login Failed: " + errorMessage);
-            }
-        }
-        
-        async function handleLogout() {
-            try {
-                if (!auth) throw new Error("Authentication service is not initialized.");
-                cleanupPublicListeners(); // Cleanup listeners before sign out
-                await signOut(auth);
-                showMessage("Logged out successfully.", 'success');
-                // The onAuthStateChanged listener handles navigation to 'login' and then handleInitialSignIn()
-            } catch (error) {
-                console.error("Logout failed:", error);
-                showMessage("Logout Failed: " + error.message);
-            }
-        }
-
-        // --- Data Listeners ---
-        
-        function cleanupPublicListeners() {
-            publicUnsubscribers.forEach(unsub => unsub());
-            publicUnsubscribers = [];
-            console.log("Cleaned up public data listeners.");
-        }
-
-        function startPublicDataListeners() {
-            // CRITICAL GUARD: Only run if DB, Auth, and a user (anon or full) are confirmed
-            if (!db || !isAuthReady || !auth.currentUser) {
-                console.warn("Attempted to start listeners but pre-conditions failed (DB, Auth Ready, or Current User missing).");
-                return;
-            }
-            
-            // Clean up old listeners before starting new ones to prevent duplicates
-            cleanupPublicListeners();
-            
-            // 1. Real-time listener for Categories (Public Data)
-            const categoriesCol = collection(db, `artifacts/${appId}/public/data/categories`);
-            const unsubCategories = onSnapshot(categoriesCol, (snapshot) => {
-                const listContainer = document.getElementById('category-list');
-                if (!listContainer) return;
-
-                listContainer.innerHTML = '';
-                if (snapshot.empty) {
-                    listContainer.innerHTML = '<p class="col-span-3 text-gray-500">No categories found. Admin needs to add them.</p>';
-                    return;
-                }
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const item = document.createElement('div');
-                    item.className = 'p-3 bg-green-50 rounded-lg hover:bg-green-100 transition cursor-pointer';
-                    item.innerHTML = `
-                        <svg class="w-8 h-8 mx-auto text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5V10h2v7.5zM12 7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
-                        <span class="text-sm font-medium mt-1 block">${data.name || 'Unknown Category'}</span>
-                    `;
-                    listContainer.appendChild(item);
-                });
-            }, (error) => {
-                // This error means the security rule is violated, even with an authenticated user
-                console.error("Category Snapshot Error:", error.message);
-                // We keep the error logged but stop the listener from constantly retrying
-            });
-            publicUnsubscribers.push(unsubCategories);
-            
-            // 2. Real-time listener for Products (Public Data) - simplified list
-            const productsCol = collection(db, `artifacts/${appId}/public/data/products`);
-            const unsubProducts = onSnapshot(productsCol, (snapshot) => {
-                const listContainer = document.getElementById('product-list');
-                if (!listContainer) return;
-
-                listContainer.innerHTML = '';
-                if (snapshot.empty) {
-                    listContainer.innerHTML = '<p class="text-gray-500">No products found. Admin needs to add them.</p>';
-                    return;
-                }
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const item = document.createElement('div');
-                    item.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border-b';
-                    item.innerHTML = `
-                        <div>
-                            <div class="font-medium">${data.name || 'Unknown Product'}</div>
-                            <div class="text-sm text-gray-600">$${data.price ? data.price.toFixed(2) : 'N/A'}</div>
-                        </div>
-                        <button class="text-green-600 hover:text-green-800 text-sm font-medium">Add to Cart</button>
-                    `;
-                    listContainer.appendChild(item);
-                });
-            }, (error) => {
-                console.error("Product Snapshot Error:", error.message);
-            });
-            publicUnsubscribers.push(unsubProducts);
-        }
-
-
-        // --- Navigation and Rendering ---
-
-        function navigate(page) {
-            currentPage = page;
-            const container = document.getElementById('app-container');
-            
-            // Update active state of navigation buttons
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if (btn.getAttribute('data-page') === page) {
-                    btn.classList.add('text-green-600');
-                } else {
-                    btn.classList.remove('text-green-600');
-                }
-            });
-
-            // CRUCIAL: Cleanup listeners if leaving the home page
-            if (page !== 'home') {
-                cleanupPublicListeners();
-            }
-
-            switch (page) {
-                case 'login':
-                case 'signup':
-                    renderAuthPage(container, page);
-                    break;
-                case 'home':
-                    renderHomePage(container);
-                    // Crucial: Start listeners only when navigating to a page that needs data 
-                    // AND when a user object (full or anon) is available.
-                    if (isAuthReady && auth.currentUser) {
-                        startPublicDataListeners();
-                    } else if (isAuthReady && !auth.currentUser) {
-                        // This handles a case where a user somehow logs out but is still on the home page.
-                        // We attempt anonymous sign-in, which will re-trigger onAuthStateChanged.
-                        handleInitialSignIn(); 
-                    } else {
-                         // Fallback for initial load state before isAuthReady is true
-                         console.log("Navigating home before auth is ready. Waiting for onAuthStateChanged to fire.");
-                    }
-                    break;
-                case 'cart':
-                    // Check if user is fully logged in (not anonymous)
-                    if (auth.currentUser && auth.currentUser.isAnonymous) {
-                         renderAuthRequiredPage(container, 'Cart');
-                    } else {
-                        renderCartPage(container);
-                    }
-                    break;
-                case 'account':
-                    if (auth.currentUser && auth.currentUser.isAnonymous) {
-                         renderAuthRequiredPage(container, 'Account');
-                    } else {
-                        renderAccountPage(container);
-                    }
-                    break;
-            }
-        }
-
-        function renderAuthPage(container, mode) {
-            const isLogin = mode === 'login';
-            container.innerHTML = `
-                <div class="flex flex-col items-center justify-center min-h-screen-minus-nav">
-                    <h1 class="text-3xl font-bold text-green-600 mb-8">Welcome to 6amMart</h1>
-                    <div class="card w-full max-w-sm">
-                        <h2 class="text-2xl font-semibold mb-6 text-center">${isLogin ? 'Login' : 'Sign Up'}</h2>
-                        <input type="email" id="auth-email" placeholder="Email" required>
-                        <input type="password" id="auth-password" placeholder="Password" required>
-                        <button id="auth-btn" class="btn-primary mb-4">${isLogin ? 'Log In' : 'Create Account'}</button>
-                        <div class="text-center text-sm">
-                            ${isLogin ? 
-                                '<p>Need an account? <button id="toggle-auth" class="text-green-600 hover:text-green-800 font-medium">Sign Up</button></p>' :
-                                '<p>Already have an account? <button id="toggle-auth" class="text-green-600 hover:text-green-800 font-medium">Log In</button></p>'
-                            }
-                        </div>
-                    </div>
-                </div>
+        /** Renders the Login Form */
+        function renderLogin() {
+            contentDiv.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Log In</h2>
+                <input type="email" id="login-email" placeholder="Email" class="form-input" required>
+                <input type="password" id="login-password" placeholder="Password" class="form-input" required>
+                <button id="login-btn" class="btn-primary">Log In</button>
+                <p class="text-center text-sm mt-4 text-gray-600">
+                    Need an account? <a href="#" id="show-signup" class="text-green-600 font-semibold hover:text-green-700">Sign Up</a>
+                </p>
+                <div id="message-box"></div>
             `;
-
-            document.getElementById('auth-btn').addEventListener('click', () => {
-                const email = document.getElementById('auth-email').value;
-                const password = document.getElementById('auth-password').value;
-                if (!email || !password) {
-                    showMessage("Please enter both email and password.");
-                    return;
-                }
-                if (isLogin) {
-                    handleLogin(email, password);
-                } else {
-                    handleSignUp(email, password);
-                }
+            document.getElementById('show-signup').addEventListener('click', (e) => {
+                e.preventDefault();
+                renderSignup();
             });
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+        }
 
-            document.getElementById('toggle-auth').addEventListener('click', () => {
-                navigate(isLogin ? 'signup' : 'login');
+        /** Renders the Signup Form */
+        function renderSignup() {
+            contentDiv.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Sign Up</h2>
+                <input type="email" id="signup-email" placeholder="Email" class="form-input" required>
+                <input type="password" id="signup-password" placeholder="Password (min 6 characters)" class="form-input" required>
+                <button id="signup-btn" class="btn-primary">Create Account</button>
+                <p class="text-center text-sm mt-4 text-gray-600">
+                    Already have an account? <a href="#" id="show-login" class="text-green-600 font-semibold hover:text-green-700">Log In</a>
+                </p>
+                <div id="message-box"></div>
+            `;
+            document.getElementById('show-login').addEventListener('click', (e) => {
+                e.preventDefault();
+                renderLogin();
             });
-        }
-        
-        function renderAuthRequiredPage(container, pageName) {
-            container.innerHTML = `
-                <div class="py-4 text-center">
-                    <h1 class="text-2xl font-bold text-red-500 mb-4">${pageName} Access Denied</h1>
-                    <div class="card max-w-sm mx-auto p-8">
-                        <p class="text-gray-700 mb-4">You need to be logged in with a full user account to access your ${pageName}.</p>
-                        <button class="btn-primary mt-4" onclick="navigate('login')">Go to Login</button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // --- Placeholder Pages ---
-        
-        function renderHomePage(container) {
-            container.innerHTML = `
-                <div class="py-4">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Home (User View)</h1>
-                    <p class="text-gray-600 mb-4">Welcome back! This is the main shopping view. Your user ID is: <span class="font-mono text-xs p-1 bg-gray-200 rounded">${userId || 'Loading...'}</span></p>
-                    
-                    <div class="card mb-6">
-                        <h2 class="text-xl font-semibold mb-4 text-green-700">Explore Categories</h2>
-                        <div id="category-list" class="grid grid-cols-3 gap-4 text-center">
-                            <p class="col-span-3 text-gray-500">Loading categories from Firestore...</p>
-                        </div>
-                    </div>
-                    
-                    <div class="card">
-                        <h2 class="text-xl font-semibold mb-4 text-green-700">Featured Products</h2>
-                        <div id="product-list" class="space-y-3">
-                            <p class="text-gray-500">Loading products...</p>
-                        </div>
-                    </div>
-                </div>
-            `;
+            document.getElementById('signup-btn').addEventListener('click', handleSignup);
         }
 
-
-        function renderCartPage(container) {
-            container.innerHTML = `
-                <div class="py-4">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-4">Shopping Cart</h1>
-                    <p class="text-gray-600">Your cart is currently empty. Start shopping!</p>
+        /** Renders the Home Screen (After Successful Auth) */
+        function renderHome() {
+            contentDiv.innerHTML = `
+                <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center">Welcome, User!</h2>
+                <p class="text-center text-gray-600 mb-6">User ID: <span class="font-mono text-sm text-green-700 break-words">${userId || 'N/A'}</span></p>
+                <div id="home-data" class="text-center text-gray-500">
+                    <!-- Placeholder for fetching user-specific data -->
+                    Data loaded successfully! You are signed in.
                 </div>
-            `;
-        }
-        
-        function renderAccountPage(container) {
-            container.innerHTML = `
-                <div class="py-4">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-6">My Account</h1>
-                    <div class="card">
-                        <p class="text-gray-700 mb-4">Authenticated User ID: <span class="font-mono text-sm block mt-1 p-2 bg-gray-100 rounded">${userId || 'Not Logged In'}</span></p>
-                        <button id="logout-btn" class="btn-primary mt-4 bg-red-500 hover:bg-red-700">Logout</button>
-                    </div>
-                </div>
+                <button id="logout-btn" class="btn-primary bg-red-500 hover:bg-red-600">Log Out</button>
+                <div id="message-box"></div>
             `;
             document.getElementById('logout-btn').addEventListener('click', handleLogout);
         }
 
-        // --- Initialization ---
+        // --- Authentication Handlers ---
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Set up bottom navigation listeners
-            document.querySelectorAll('.nav-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const page = e.currentTarget.getAttribute('data-page');
-                    
-                    // Check if Firebase is initialized before checking auth status
-                    if (!auth) {
-                        showMessage("App is still initializing. Please wait a moment.");
-                        return;
+        async function handleSignup() {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            showMessage('Signing up...', 'success');
+
+            try {
+                // Ensure auth object is available
+                if (!auth) throw new Error("Firebase Auth service is not initialized.");
+
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                showMessage(`Account created for ${user.email}!`, 'success');
+                // The onAuthStateChanged listener will handle rendering the Home screen
+            } catch (error) {
+                console.error("Signup failed:", error);
+                showMessage(error.message || "Sign up failed. Please try again.", 'error');
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            showMessage('Logging in...', 'success');
+
+            try {
+                if (!auth) throw new Error("Firebase Auth service is not initialized.");
+
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                showMessage(`Welcome back, ${user.email}!`, 'success');
+                // The onAuthStateChanged listener will handle rendering the Home screen
+            } catch (error) {
+                console.error("Login failed:", error);
+                showMessage(error.message || "Login failed. Please check your credentials.", 'error');
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                if (!auth) throw new Error("Firebase Auth service is not initialized.");
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout error:", error);
+                showMessage("Logout failed.", 'error');
+            }
+        }
+
+        // --- Core Initialization ---
+
+        /** Initializes Firebase services and authentication state listener. */
+        function initializeFirebase() {
+            if (!firebaseConfig) {
+                showMessage("CRITICAL ERROR: Firebase configuration globals missing. Please ensure '__firebase_config' is set correctly in your environment variables.", 'error');
+                console.error("CRITICAL ERROR: __firebase_config is missing or invalid.");
+                return;
+            }
+
+            try {
+                // 1. Initialize App
+                app = initializeApp(firebaseConfig);
+                
+                // 2. Initialize Auth and Firestore
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // 3. Handle initial authentication
+                if (initialAuthToken) {
+                    signInWithCustomToken(auth, initialAuthToken)
+                        .then(() => console.log("Signed in with custom token."))
+                        .catch(err => {
+                            console.error("Custom token sign-in failed:", err);
+                            // Fallback to anonymous sign-in if custom token fails
+                            signInAnonymously(auth).catch(anonErr => console.error("Anonymous sign-in failed:", anonErr));
+                        });
+                } else {
+                    // If no initial token, sign in anonymously for initial setup/database access
+                    signInAnonymously(auth)
+                        .then(() => console.log("Signed in anonymously."))
+                        .catch(err => console.error("Anonymous sign-in failed:", err));
+                }
+
+                // 4. Set up Auth State Listener
+                onAuthStateChanged(auth, (user) => {
+                    isAuthReady = true; // Auth check has completed
+                    if (user) {
+                        userId = user.uid;
+                        // User is signed in (either anonymously or via email/password)
+                        console.log("Auth State Changed: User is logged in.", userId);
+                        renderHome();
+                    } else {
+                        userId = null;
+                        // User is signed out, show login/signup
+                        console.log("Auth State Changed: User is signed out.");
+                        renderLogin();
                     }
-                    
-                    // Protect Cart and Account pages if the user is anonymous
-                    if ((page === 'cart' || page === 'account') && auth.currentUser && auth.currentUser.isAnonymous) {
-                        showMessage("Please log in or sign up to access your personal pages.");
-                        // Navigate will handle rendering the auth required page
-                    }
-                    
-                    navigate(page);
                 });
-            });
 
-            // Start Firebase initialization
-            initializeFirebase();
-            
-            // Render the initial auth page immediately while Firebase initializes
-            // This prevents the white screen during the async setup.
-            renderAuthPage(document.getElementById('app-container'), 'login');
-        });
+            } catch (e) {
+                console.error("CRITICAL ERROR: Firebase Initialization Failed.", e);
+                // Display the specific initialization error to the user
+                showMessage("CRITICAL ERROR: App Initialization Failed. Check your console for details, likely due to an invalid configuration key format or missing services. Error: " + e.message, 'error');
+                
+                // Fallback to show login/signup structure even if services failed
+                renderLogin(); 
+            }
+        }
 
+        // Run the main initialization logic when the page loads
+        initializeFirebase();
     </script>
+    
 </body>
 </html>
